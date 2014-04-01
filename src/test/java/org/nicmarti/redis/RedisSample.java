@@ -14,7 +14,7 @@ import static org.fest.assertions.api.Assertions.*;
 public class RedisSample {
 
     public static final String hostname="localhost";
-    public static final int port=6363;
+    public static final int port=6379;
     public static final int redisDB=2;
 
     @BeforeClass
