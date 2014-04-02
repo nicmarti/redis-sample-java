@@ -4,7 +4,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
-import java.util.HashSet;
+import java.util.*;
 
 import static org.fest.assertions.api.Assertions.*;
 
@@ -14,7 +14,7 @@ import static org.fest.assertions.api.Assertions.*;
 public class RedisSample {
 
     public static final String hostname = "localhost";
-    public static final int port = 6379;
+    public static final int port = 6363;
     public static final int redisDB = 2;
 
     @BeforeClass
@@ -180,6 +180,11 @@ public class RedisSample {
         // rank #2 -> José with a score=9
         assertThat(jedis.zscore("talks:proposed:nicolas_on_redis", "José")).isEqualTo(9);
         assertThat(jedis.zrank("talks:proposed:nicolas_on_redis", "José")).isEqualTo(2);
+
+        // Delete the sample
+        jedis.del("talks:proposed:nicolas_on_redis");
+        assertThat(jedis.exists("talks:proposed:nicolas_on_redis")).isFalse();
+
     }
 
     @Test
@@ -189,6 +194,52 @@ public class RedisSample {
 
         assertThat(jedis.exists("speakers:nicolas")).isFalse();
 
+        jedis.hset("speakers:nicolas", "firstname", "nicolas");
+        jedis.hset("speakers:nicolas", "lastname", "martignole");
+        jedis.hset("speakers:nicolas", "twitter", "@nmartignole");
+        jedis.hset("speakers:nicolas", "bio", "Freelancer, Devoxx France co-organizer.");
+
+        assertThat(jedis.hget("speakers:nicolas", "firstname")).isEqualTo("nicolas");
+
+        // multiple get
+        List<String> expected = new ArrayList<String>(2);
+        expected.add("nicolas");
+        expected.add("@nmartignole");
+        assertThat(jedis.hmget("speakers:nicolas", "firstname", "twitter")).isEqualTo(expected);
+
+        // We do not have an email yet
+        assertThat(jedis.hexists("speakers:nicolas", "email")).isFalse();
+        jedis.hset("speakers:nicolas", "email", "nicolas@touilleur-express.fr");
+        assertThat(jedis.hexists("speakers:nicolas", "email")).isTrue();
+
+        // Delete email
+        jedis.hdel("speakers:nicolas", "email");
+        assertThat(jedis.hexists("speakers:nicolas", "email")).isFalse();
+
+        // Get all
+        jedis.hdel("speakers:nicolas", "bio");
+        jedis.hdel("speakers:nicolas", "twitter");
+
+        // Should return only firstname and lastname
+        Map<String, String> expectedResult = new HashMap<String, String>(2);
+        expectedResult.put("firstname", "nicolas");
+        expectedResult.put("lastname", "martignole");
+        assertThat(jedis.hgetAll("speakers:nicolas")).isEqualTo(expectedResult);
+
+        assertThat(jedis.hlen("speakers:nicolas")).isEqualTo(2);
+
+        // Nicolas is presenting one talk
+        jedis.hset("speakers:nicolas", "numberOfPresentedTalks", "1");
+
+        // He is also speaking at 2 keynotes
+        jedis.hincrBy("speakers:nicolas", "numberOfPresentedTalks", 2);
+
+        // So he's really presenting 3 talks
+        assertThat(jedis.hget("speakers:nicolas", "numberOfPresentedTalks")).isEqualTo("3");
+
+        // Delete the speaker
+        jedis.del("speakers:nicolas");
+        assertThat(jedis.exists("speakers:nicolas")).isFalse();
 
     }
 
